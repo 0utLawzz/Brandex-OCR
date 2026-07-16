@@ -425,13 +425,20 @@ def combine_docs_to_pdf(input_folder, output_folder):
                 try:
                     import win32com.client
                     word = win32com.client.Dispatch('Word.Application')
+                    word.Visible = False
+                    word.DisplayAlerts = 0 # Suppress all dialogs and alerts
+                    
                     # FileFormat 17 is wdFormatPDF
-                    doc_obj = word.Documents.Open(str(doc.absolute()))
+                    doc_obj = word.Documents.Open(str(doc.absolute()), ConfirmConversions=False, ReadOnly=True)
                     doc_obj.SaveAs(str(pdf_path.absolute()), FileFormat=17)
-                    doc_obj.Close()
+                    doc_obj.Close(SaveChanges=0) # Do not save changes to original
                     word.Quit()
                 except Exception as e:
                     print(f"Failed to convert {doc.name}: {e}")
+                    try:
+                        word.Quit()
+                    except:
+                        pass
                     continue
             else:
                 docx_convert(str(doc), str(pdf_path))
