@@ -8,6 +8,17 @@ from datetime import datetime
 import os
 import logging
 from pathlib import Path
+import sys
+
+try:
+    from pypdf import PdfMerger
+except ImportError:
+    PdfMerger = None
+
+try:
+    from docx2pdf import convert as docx_convert
+except ImportError:
+    docx_convert = None
 
 # Configure Tesseract path (Windows fallback)
 if os.name == 'nt':
@@ -342,12 +353,133 @@ def batch_process_opposition_documents(input_folder, output_folder):
     logging.info(f"Processed {len(results)} documents successfully. Master summary saved to {master_summary_path}")
     return results
 
-if __name__ == '__main__':
-    input_dir = 'input'
-    output_dir = 'output'
+def combine_images_to_pdf(input_folder, output_folder):
+    input_path = Path(input_folder)
+    output_path = Path(output_folder)
+    extensions = {'.jpeg', '.jpg', '.png', '.tiff', '.bmp'}
     
+    images = []
+    for file in input_path.glob('*'):
+        if file.suffix.lower() in extensions:
+            img = Image.open(file)
+            if img.mode != 'RGB':
+                img = img.convert('RGB')
+            images.append(img)
+            
+    if not images:
+        print("No images found in pdf_input folder.")
+        return
+        
+    output_file = output_path / f"combined_images_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+    images[0].save(output_file, save_all=True, append_images=images[1:])
+    print(f"✅ Successfully combined {len(images)} images into {output_file}")
+
+def combine_pdfs(input_folder, output_folder):
+    if PdfMerger is None:
+        print("Error: 'pypdf' library is not installed. Please run: pip install pypdf")
+        return
+        
+    input_path = Path(input_folder)
+    output_path = Path(output_folder)
+    
+    merger = PdfMerger()
+    pdf_files = list(input_path.glob('*.pdf'))
+    
+    if not pdf_files:
+        print("No PDF files found in pdf_input folder.")
+        return
+        
+    for pdf in pdf_files:
+        merger.append(str(pdf))
+        
+    output_file = output_path / f"combined_pdfs_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+    merger.write(str(output_file))
+    merger.close()
+    print(f"✅ Successfully combined {len(pdf_files)} PDFs into {output_file}")
+
+def combine_docs_to_pdf(input_folder, output_folder):
+    if docx_convert is None or PdfMerger is None:
+        print("Error: 'docx2pdf' and/or 'pypdf' libraries are missing. Please run: pip install docx2pdf pypdf")
+        return
+        
+    input_path = Path(input_folder)
+    output_path = Path(output_folder)
+    
+    doc_files = list(input_path.glob('*.doc')) + list(input_path.glob('*.docx'))
+    
+    if not doc_files:
+        print("No Word documents found in pdf_input folder.")
+        return
+        
+    temp_dir = output_path / "temp_pdf_conversion"
+    temp_dir.mkdir(exist_ok=True)
+    
+    merger = PdfMerger()
+    
+    try:
+        for doc in doc_files:
+            pdf_path = temp_dir / f"{doc.stem}.pdf"
+            print(f"Converting {doc.name} to PDF...")
+            docx_convert(str(doc), str(pdf_path))
+            merger.append(str(pdf_path))
+            
+        output_file = output_path / f"combined_docs_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+        merger.write(str(output_file))
+        merger.close()
+        print(f"✅ Successfully combined {len(doc_files)} documents into {output_file}")
+    finally:
+        for temp_file in temp_dir.glob('*.pdf'):
+            try:
+                temp_file.unlink()
+            except Exception:
+                pass
+        try:
+            temp_dir.rmdir()
+        except Exception:
+            pass
+
+def batch_pdf_menu():
+    print("\n--- Batch PDF Combiner ---")
+    print("Select input file type to combine:")
+    print("1. Images (.jpg, .png, etc.)")
+    print("2. PDF (.pdf)")
+    print("3. Word Documents (.doc, .docx)")
+    
+    choice = input("Select an option (1/2/3): ").strip()
+    
+    input_dir = 'pdf_input'
+    output_dir = 'pdf_output'
     os.makedirs(input_dir, exist_ok=True)
     os.makedirs(output_dir, exist_ok=True)
     
-    logging.info("Starting batch processing...")
-    batch_process_opposition_documents(input_dir, output_dir)
+    if choice == '1':
+        combine_images_to_pdf(input_dir, output_dir)
+    elif choice == '2':
+        combine_pdfs(input_dir, output_dir)
+    elif choice == '3':
+        combine_docs_to_pdf(input_dir, output_dir)
+    else:
+        print("Invalid choice. Returning to main menu.")
+
+if __name__ == '__main__':
+    while True:
+        print("\n=== Brandex-OCR Utility ===")
+        print("1. Extract OCR from Images")
+        print("2. Create Combined Batch PDF")
+        print("3. Exit")
+        choice = input("Select an option (1/2/3): ").strip()
+        
+        if choice == '1':
+            input_dir = 'input'
+            output_dir = 'output'
+            os.makedirs(input_dir, exist_ok=True)
+            os.makedirs(output_dir, exist_ok=True)
+            logging.info("Starting batch processing...")
+            batch_process_opposition_documents(input_dir, output_dir)
+        elif choice == '2':
+            batch_pdf_menu()
+        elif choice == '3':
+            print("Exiting...")
+            sys.exit(0)
+        else:
+            print("Invalid choice, please select 1, 2, or 3.")
