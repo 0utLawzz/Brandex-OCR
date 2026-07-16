@@ -11,9 +11,9 @@ from pathlib import Path
 import sys
 
 try:
-    from pypdf import PdfMerger
+    from pypdf import PdfWriter
 except ImportError:
-    PdfMerger = None
+    PdfWriter = None
 
 try:
     from docx2pdf import convert as docx_convert
@@ -375,14 +375,14 @@ def combine_images_to_pdf(input_folder, output_folder):
     print(f"✅ Successfully combined {len(images)} images into {output_file}")
 
 def combine_pdfs(input_folder, output_folder):
-    if PdfMerger is None:
+    if PdfWriter is None:
         print("Error: 'pypdf' library is not installed. Please run: pip install pypdf")
         return
         
     input_path = Path(input_folder)
     output_path = Path(output_folder)
     
-    merger = PdfMerger()
+    merger = PdfWriter()
     pdf_files = list(input_path.glob('*.pdf'))
     
     if not pdf_files:
@@ -398,7 +398,7 @@ def combine_pdfs(input_folder, output_folder):
     print(f"✅ Successfully combined {len(pdf_files)} PDFs into {output_file}")
 
 def combine_docs_to_pdf(input_folder, output_folder):
-    if docx_convert is None or PdfMerger is None:
+    if docx_convert is None or PdfWriter is None:
         print("Error: 'docx2pdf' and/or 'pypdf' libraries are missing. Please run: pip install docx2pdf pypdf")
         return
         
@@ -414,7 +414,7 @@ def combine_docs_to_pdf(input_folder, output_folder):
     temp_dir = output_path / "temp_pdf_conversion"
     temp_dir.mkdir(exist_ok=True)
     
-    merger = PdfMerger()
+    merger = PdfWriter()
     
     try:
         for doc in doc_files:
