@@ -9,6 +9,12 @@ import os
 import logging
 from pathlib import Path
 
+# Configure Tesseract path (Windows fallback)
+if os.name == 'nt':
+    tesseract_path = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+    if os.path.exists(tesseract_path):
+        pytesseract.pytesseract.tesseract_cmd = tesseract_path
+
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
