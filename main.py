@@ -420,8 +420,24 @@ def combine_docs_to_pdf(input_folder, output_folder):
         for doc in doc_files:
             pdf_path = temp_dir / f"{doc.stem}.pdf"
             print(f"Converting {doc.name} to PDF...")
-            docx_convert(str(doc), str(pdf_path))
-            merger.append(str(pdf_path))
+            
+            if doc.suffix.lower() == '.doc':
+                try:
+                    import win32com.client
+                    word = win32com.client.Dispatch('Word.Application')
+                    # FileFormat 17 is wdFormatPDF
+                    doc_obj = word.Documents.Open(str(doc.absolute()))
+                    doc_obj.SaveAs(str(pdf_path.absolute()), FileFormat=17)
+                    doc_obj.Close()
+                    word.Quit()
+                except Exception as e:
+                    print(f"Failed to convert {doc.name}: {e}")
+                    continue
+            else:
+                docx_convert(str(doc), str(pdf_path))
+                
+            if pdf_path.exists():
+                merger.append(str(pdf_path))
             
         output_file = output_path / f"combined_docs_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
         merger.write(str(output_file))
